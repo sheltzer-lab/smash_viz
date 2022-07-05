@@ -1,4 +1,5 @@
 import argparse
+from itertools import product
 import pyparsing as pp
 import re
 
@@ -101,6 +102,7 @@ def main():
         "--highlight",
         type=str,
         metavar="CHR",
+        choices=["".join(b) for b in product(_arms.keys(), ["p", "q"])],
         help="Highlight a given chromosome/arm. Examples: 1q, 7p, 8q",
     )
     parser.add_argument(
