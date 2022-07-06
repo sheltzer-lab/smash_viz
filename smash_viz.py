@@ -159,9 +159,13 @@ def main():
 
         if args.highlight:
             # Add a macro definition line with match
-            if match := re.search("^\/p (.*) fp (.*)$", line):
+            # /p {gs tr np 0.94815 sc 0.3 sc 0 0 5 0 360 arc gs fp gr sp gr} def
+            if match := re.search(
+                "^\/p (.*) (\d+ \d+ \d+ \d+ \d+ arc) gs fp (.*)$", line
+            ):
                 r, g, b = _rgb[args.color]
-                ph = f"/ph {match.group(1)} {r / 255} {g / 255} {b / 255} setrgbcolor fp {match.group(2)}"
+                rgbcolor = f"{r / 255} {g / 255} {b / 255} setrgbcolor"
+                ph = f"/ph {match.group(1)} {rgbcolor} {match.group(2)} gs {rgbcolor} fp {match.group(3)}"
                 args.output.write(f"{ph}\n")
                 skip_next = False
 
