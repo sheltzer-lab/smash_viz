@@ -63,15 +63,15 @@ _rgb = {
 # 744.57 47.242 m glx sp
 # 751.22 564.9 m (Y) jc s
 # 757.86 47.242 m glx sp
-_float = pp.Combine(pp.Word(pp.nums) + "." + pp.Word(pp.nums))
+_num = pp.Combine(pp.Word(pp.nums) + "." + pp.Word(pp.nums)) | pp.Word(pp.nums)
 _p_chr = (
-    _float("START")
-    + _float
+    _num("START")
+    + _num
     + pp.Literal("m")
     + pp.Literal("glx")
     + pp.Literal("sp")
-    + _float
-    + _float
+    + _num
+    + _num
     + pp.Literal("m")
     + pp.Literal("(")
     + (pp.Word(pp.nums) | pp.Literal("X") | pp.Literal("Y"))("CHR")
@@ -112,6 +112,7 @@ def main():
         choices=_rgb.keys(),
         help="Color of highlight",
     )
+    parser.add_argument("--title", type=str, help="New title for plots")
 
     args = parser.parse_args()
 
@@ -119,7 +120,7 @@ def main():
     lines = args.ps.read()
     chr_start: Mapping[str, float] = {}
     starts = []
-    for result, _, _ in _p_chr.scan_string(lines, overlap=True):
+    for result, _, _ in _p_chr.scan_string(lines):
         start = float(result["START"])
         chr_start[result["CHR"]] = start
         starts.append(start)
@@ -154,13 +155,15 @@ def main():
             end = chr_pos[chrm]["END"]
 
     for line in lines.split("\n"):
+        skip_next = False  # Default to not skipping
+
         if args.highlight:
             # Add a macro definition line with match
             if match := re.search("^\/p (.*) fp (.*)$", line):
                 r, g, b = _rgb[args.color]
                 ph = f"/ph {match.group(1)} {r / 255} {g / 255} {b / 255} setrgbcolor fp {match.group(2)}"
                 args.output.write(f"{ph}\n")
-                args.output.write(f"{line}\n")
+                skip_next = False
 
             # Replace match with use of new macro
             if match := re.search("^(\d+\.?\d+) (\d+\.?\d+) p$", line):
@@ -168,10 +171,22 @@ def main():
                 py = float(match.group(2))
                 if (start <= px) and (px <= end):
                     args.output.write(f"{px} {py} ph\n")
-                    continue
+                    skip_next = True
 
-            args.output.write(f"{line}\n")
-        else:
+        if args.title:
+            # Change the annotated title
+            if re.search("^%%Title: .*$", line):
+                args.output.write(f"%%Title: {args.title}\n")
+                skip_next = True
+
+            # Change the visual title
+            if match := re.search("^(.*sf bk c \().*bins(\) jc s)\W*$", line):
+                before = match.group(1)
+                after = match.group(2)
+                args.output.write(f"{before}{args.title}{after}\n")
+                skip_next = True
+
+        if not skip_next:
             args.output.write(f"{line}\n")
 
 
