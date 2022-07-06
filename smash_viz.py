@@ -48,7 +48,6 @@ _rgb = {
     "purple": (128, 0, 128),
     "teal": (0, 128, 128),
     "navy": (0, 0, 128),
-    "lightblue": (173, 216, 230),
 }
 
 # Parser for chromosome lines
@@ -110,6 +109,7 @@ def main():
         type=str,
         metavar="COLOR",
         choices=_rgb.keys(),
+        default="blue",
         help="Color of highlight",
     )
     parser.add_argument("--title", type=str, help="New title for plots")
@@ -167,7 +167,7 @@ def main():
                 rgbcolor = f"{r / 255} {g / 255} {b / 255} setrgbcolor"
                 ph = f"/ph {match.group(1)} {rgbcolor} {match.group(2)} gs {rgbcolor} fp {match.group(3)}"
                 args.output.write(f"{ph}\n")
-                skip_next = False
+                skip_next = False  # Once this is removed, all cases skip writing the current line
 
             # Replace match with use of new macro
             if match := re.search("^(\d+\.?\d+) (\d+\.?\d+) p$", line):
