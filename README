@@ -1,0 +1,13 @@
+# Plan
+
+On 2022-06/27, Jason requested I take one of the SMASH graphs from the shared Dropbox and highlight the relevant chromosome in light blue. For A2780 MDM4 C13, that chromosome is 1q. Once done, share this image on Dropbox.
+
+## TODO
+
++ Gray out non-highlighted arm(s)
+  + Current: `/p {gs tr np 0.94815 sc 0.3 sc 0 0 5 0 360 arc sp gr} def`
+  + Becomes: `/p {gs tr np 0.94815 sc 0.3 sc 0.5 setgray 0 0 5 0 360 arc gs fp gr sp gr} def`
+  + There are two "point" definitions, one for base points and one for red/trend points, both should change to be gray and filled
++ Remove the "lightblue" definition for color as it is not good for this purpose
++ Set "blue" as the default color if one is not chosen
++ Allow for multiple highlights so that we can highlight 1q, 7p, and 8q in one pass (needed as the above gray-out is applied to all non-highlighted points)
