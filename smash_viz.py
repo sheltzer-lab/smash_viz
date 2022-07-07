@@ -1,4 +1,5 @@
 import argparse
+from distutils.dir_util import copy_tree
 from itertools import product
 import pyparsing as pp
 import re
@@ -84,35 +85,45 @@ def main():
     parser = argparse.ArgumentParser(
         description="Change the visual style of SMASH PostScript plots."
     )
-    parser.add_argument(
+    io = parser.add_argument_group("IO")
+    io.add_argument(
         "--ps",
         "--input",
         type=argparse.FileType("r"),
         required=True,
         help="The PostScript file to read",
     )
-    parser.add_argument(
+    io.add_argument(
         "--output",
         type=argparse.FileType("w"),
         required=True,
         help="The PostScript file to write",
     )
-    parser.add_argument(
+
+    text = parser.add_argument_group("text")
+    text.add_argument("--title", type=str, help="New title for plots")
+
+    colors = parser.add_argument_group("coloration")
+    colors.add_argument(
         "--highlight",
         type=str,
         metavar="CHR",
         choices=["".join(b) for b in product(_arms.keys(), ["p", "q"])],
         help="Highlight a given chromosome/arm. Examples: 1q, 7p, 8q",
     )
-    parser.add_argument(
+    colors.add_argument(
         "--color",
         type=str,
         metavar="COLOR",
         choices=_rgb.keys(),
         default="blue",
-        help="Color of highlight",
+        help="Color of highlight (default: %(default)s)",
     )
-    parser.add_argument("--title", type=str, help="New title for plots")
+    colors.add_argument(
+        "--gray",
+        action="store_true",
+        help="Whether to gray out non-highlighted chromosomes",
+    )
 
     args = parser.parse_args()
 
@@ -155,19 +166,26 @@ def main():
             end = chr_pos[chrm]["END"]
 
     for line in lines.split("\n"):
-        skip_next = False  # Default to not skipping
-
         if args.highlight:
             # Add a macro definition line with match
+            # /p {gs tr np 0.94815 sc 0.3 sc 0 0 5 0 360 arc sp gr} def
             # /p {gs tr np 0.94815 sc 0.3 sc 0 0 5 0 360 arc gs fp gr sp gr} def
             if match := re.search(
-                "^\/p (.*) (\d+ \d+ \d+ \d+ \d+ arc) gs fp (.*)$", line
+                "^\/p (\{gs tr np \d+.?\d+ sc \d+.?\d+ sc) (\d+ \d+ \d+ \d+ \d+ arc) (?:gs fp gr )?(sp gr\} def)$",
+                line,
             ):
+                p = ""
+                if args.gray:
+                    p = f"/p {match.group(1)} 0.5 setgray {match.group(2)} gs fp gr {match.group(3)}"
+                else:
+                    p = line
+
                 r, g, b = _rgb[args.color]
                 rgbcolor = f"{r / 255} {g / 255} {b / 255} setrgbcolor"
-                ph = f"/ph {match.group(1)} {rgbcolor} {match.group(2)} gs {rgbcolor} fp {match.group(3)}"
+                ph = f"/ph {match.group(1)} {rgbcolor} {match.group(2)} gs {rgbcolor} fp gr {match.group(3)}"
                 args.output.write(f"{ph}\n")
-                skip_next = False  # Once this is removed, all cases skip writing the current line
+                args.output.write(f"{p}\n")
+                continue
 
             # Replace match with use of new macro
             if match := re.search("^(\d+\.?\d+) (\d+\.?\d+) p$", line):
@@ -175,23 +193,22 @@ def main():
                 py = float(match.group(2))
                 if (start <= px) and (px <= end):
                     args.output.write(f"{px} {py} ph\n")
-                    skip_next = True
+                    continue
 
         if args.title:
             # Change the annotated title
             if re.search("^%%Title: .*$", line):
                 args.output.write(f"%%Title: {args.title}\n")
-                skip_next = True
+                continue
 
             # Change the visual title
             if match := re.search("^(.*sf bk c \().*bins(\) jc s)\W*$", line):
                 before = match.group(1)
                 after = match.group(2)
                 args.output.write(f"{before}{args.title}{after}\n")
-                skip_next = True
+                continue
 
-        if not skip_next:
-            args.output.write(f"{line}\n")
+        args.output.write(f"{line}\n")
 
 
 if __name__ == "__main__":
