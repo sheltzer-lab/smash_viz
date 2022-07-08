@@ -20,6 +20,10 @@ p <- add_argument(p, "--output", help="The file to write the plot to")
 # Parse the command line arguments
 argv <- parse_args(p)
 
+if (!(argv$color %in% colors())) {
+  stop(argv$color, " is not a valid color.")
+}
+
 arms <- read.csv(argv$arms, stringsAsFactors = FALSE)
 df <- read.csv(argv$input, stringsAsFactors = FALSE, sep = '\t')
 
@@ -65,7 +69,7 @@ chrmom.lines <- df.clean %>%
 
 
 ggplot(df.clean) + 
-  geom_point(data = df.clean %>% filter(!highlight), mapping = aes(x = abspos, y = ratio)) + 
+  geom_point(data = df.clean %>% filter(!highlight), mapping = aes(x = abspos, y = ratio), color = 'gray50') + 
   geom_point(data = df.clean %>% filter(highlight), mapping = aes(x = abspos, y = ratio), color = argv$color) +
   geom_line(aes(x = abspos, y = seg_ratio), color = 'red') + 
   theme(legend.position="none") + 
