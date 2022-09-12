@@ -30,7 +30,7 @@ if (!(argv$color %in% colors())) {
 }
 
 arms <- read.csv(argv$arms, stringsAsFactors = FALSE)
-df <- read.csv(argv$input, stringsAsFactors = FALSE, sep = '\t')
+df <- read.csv(argv$input, stringsAsFactors = FALSE, sep = "\t")
 
 arms.clean <- arms %>%
   mutate(chrom = ifelse(chrom == "X", 23, chrom)) %>%
@@ -46,13 +46,16 @@ arms.clean <- arms %>%
   mutate(across(c(start, end), as.numeric))
 
 df.clean <- df %>%
+  filter(chr != "chrY") %>% # Highly repetitive so results are not high-quality
   mutate(across(c(abspos, ratio, seg_ratio), as.numeric)) %>%
   rowwise() %>%
   mutate(chrarm = arms.clean %>% rowwise() %>% filter(between(abspos, start, end)) %>% pluck("chrarm")) %>%
   ungroup() %>%
-  mutate(ratio = ratio * 2,
-         seg_ratio = seg_ratio * 2,
-         abspos = abspos / 1e9) %>%
+  mutate(
+    ratio = ratio * 2,
+    seg_ratio = seg_ratio * 2,
+    abspos = abspos / 1e9
+  ) %>%
   rowwise() %>%
   mutate(highlight = chrarm %in% unlist(str_split(argv$highlight, ","))) %>%
   ungroup()
@@ -65,43 +68,49 @@ chrom.breaks <- df.clean %>%
   unlist() %>%
   sort()
 
-chrmom.lines <- df.clean %>%
+chrom.lines <- df.clean %>%
   group_by(chr) %>%
-  summarise(minmax = min(abspos)) %>%
+  summarise(minmax = c(ifelse(chr == "chrX", c(min(abspos), max(abspos)), min(abspos)))) %>%
   pluck("minmax") %>%
   unlist() %>%
+  unique() %>%
   sort()
 
 
-ggplot(df.clean) +
+df.clean %>%
+  mutate(seg_ratio = ifelse(abspos %in% chrom.lines, NA, seg_ratio)) %>%  # Prevent drawing a trend line connecting chromosomes
+  ggplot() +
   geom_point(
     data = df.clean %>% filter(!highlight),
     mapping = aes(x = abspos, y = ratio),
-    color = ifelse(length(argv$highlight) > 0, 'gray50', 'black')
+    color = ifelse(length(argv$highlight) > 0, "gray50", "black")
   ) +
   geom_point(
     data = df.clean %>% filter(highlight),
     mapping = aes(x = abspos, y = ratio),
     color = argv$color
   ) +
-  geom_line(aes(x = abspos, y = seg_ratio), color = 'red') +
+  geom_line(aes(x = abspos, y = seg_ratio), color = "red", size = 1) +
   theme(legend.position = "none") +
   geom_vline(
-    data = data.frame(v = chrmom.lines),
+    data = data.frame(v = chrom.lines),
     mapping = aes(xintercept = v),
-    linetype = 'dashed'
+    linetype = "dashed"
   ) +
   labs(title = argv$title, x = "Genome Position (Gb)", y = "Copy Number") +
   scale_x_continuous(sec.axis = dup_axis(
     breaks = chrom.breaks,
-    labels = c(1:22, "X", "Y"),
-    name = NULL
+    labels = c(1:22, "X"),
+    name = NULL,
+    guide = guide_axis(check.overlap = TRUE)  # Drop labels on overlap
   )) +
   theme_classic() +
   theme(
     axis.title.x = element_text(hjust = 1),
-    axis.title.y = element_text(hjust = 1),
-    axis.text = element_text(size = 12)
+    axis.title.y = element_text(hjust = 1, size = 18),
+    axis.text = element_text(size = 14),
+    axis.text.y = element_text(size = 18),
+    title = element_text(size = 20)
   ) +
   ylim(0, 5)
 
