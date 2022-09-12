@@ -110,7 +110,8 @@ df.clean %>%
     axis.title.y = element_text(hjust = 1, size = 18),
     axis.text = element_text(size = 14),
     axis.text.y = element_text(size = 18),
-    title = element_text(size = 20)
+    title = element_text(size = 20),
+    panel.border = element_rect(colour = "black", fill = NA)
   ) +
   ylim(0, 5)
 
